@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<title>Contactly — simple, fast contact management</title>
+		<meta
+			name="description"
+			content="Contactly is a lightweight contact-management SaaS built with SvelteKit, Supabase, and Stripe."
+		/>
+		<!--
+			Applied before the body paints to prevent a theme flash (FOUC).
+			Reads saved preference from localStorage, falls back to system.
+		-->
+		<script>
+			(() => {
+				try {
+					const saved = localStorage.getItem('contactly:theme');
+					const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					const theme = saved === 'light' || saved === 'dark' ? saved : system;
+					document.documentElement.setAttribute('data-theme', theme);
+				} catch {
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+			})();
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover" class="min-h-screen bg-surface-0 text-fg">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
