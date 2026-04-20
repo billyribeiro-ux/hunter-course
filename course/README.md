@@ -132,6 +132,20 @@ If you read only the code blocks, you'll have a working app. If you read the pro
 - [13.2 Better redirects](./module-13-ux-extras/13.2-better-redirects.md)
 - [13.3 Stripe branding](./module-13-ux-extras/13.3-stripe-branding.md)
 
+### [Extras — Function Enhancements](./extras/)
+
+Optional lessons, independent of one another. The centrepiece is a custom Simpler Trading-style cart and multi-step checkout built with Stripe Elements — spanning four lessons. The rest are focused enhancements to functions you already shipped.
+
+- [E.1 Hosted Checkout vs Stripe Elements](./extras/E.1-hosted-vs-elements.md)
+- [E.2 The cart store and cart sidebar component](./extras/E.2-cart-store-sidebar.md)
+- [E.3 The three-step checkout stepper](./extras/E.3-checkout-stepper.md)
+- [E.4 Embedded payment with Stripe Elements](./extras/E.4-stripe-elements-payment.md)
+- [E.5 One flow, two trials — with and without a card](./extras/E.5-trial-with-without-card.md)
+- [E.6 Optimistic UI for contacts](./extras/E.6-optimistic-ui.md)
+- [E.7 CSV import for contacts](./extras/E.7-csv-import.md)
+- [E.8 Keyboard shortcuts](./extras/E.8-keyboard-shortcuts.md)
+- [E.9 Rate limiting sensitive endpoints](./extras/E.9-rate-limiting.md)
+
 ### [Thank you](./thank-you.md)
 
 ## The Contactly spec
