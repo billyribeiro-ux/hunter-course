@@ -256,4 +256,6 @@ Two `handleError` hooks, a typed surfaced error id, a Svelte 5 `<svelte:boundary
 
 This is the last Extras lesson. Every one of them takes a function you already shipped and makes it the version you'd be proud to show another engineer.
 
-Next: [Thank you →](../thank-you.md)
+You can now build, defend, and operate a production SaaS. The final track is about the judgment that decides *what* to build and *when* — the distance from senior to principal.
+
+Next: [Principal Engineer Track →](../principal-engineer-track/README.md)

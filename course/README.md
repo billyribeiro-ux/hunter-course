@@ -152,6 +152,17 @@ Optional lessons, independent of one another. The centrepiece is a custom Simple
 - [E.14 Audit log](./extras/E.14-audit-log.md)
 - [E.15 Error tracking with Sentry](./extras/E.15-error-tracking-sentry.md)
 
+### [Principal Engineer Track](./principal-engineer-track/)
+
+The meta-disciplines that separate senior from principal. No components — judgment, recorded as artifacts you keep in the repo. Read last.
+
+- [PE.1 Architecture Decision Records](./principal-engineer-track/PE.1-architecture-decision-records.md)
+- [PE.2 SLOs, SLIs & error budgets](./principal-engineer-track/PE.2-slos-and-error-budgets.md)
+- [PE.3 Incident response & blameless postmortems](./principal-engineer-track/PE.3-incident-response.md)
+- [PE.4 Threat modeling Contactly](./principal-engineer-track/PE.4-threat-modeling.md)
+- [PE.5 Cost engineering & unit economics](./principal-engineer-track/PE.5-cost-engineering.md)
+- [PE.6 The scaling roadmap](./principal-engineer-track/PE.6-scaling-roadmap.md)
+
 ### [Thank you](./thank-you.md)
 
 ## The Contactly spec

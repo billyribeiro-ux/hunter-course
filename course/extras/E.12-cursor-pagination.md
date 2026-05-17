@@ -26,7 +26,12 @@ const PAGE = 30;
 
 const CursorSchema = v.optional(
 	v.object({
-		createdAt: v.string(),
+		// MUST be strictly validated: this value is interpolated into a
+		// PostgREST `.or()` filter string below. An ISO 8601 timestamp
+		// contains no `,` `(` `)` `.`-as-operator — the only characters
+		// that could break out of the filter. `id` is uuid-validated for
+		// the same reason. See the note after this block.
+		createdAt: v.pipe(v.string(), v.isoTimestamp()),
 		id: v.pipe(v.string(), v.uuid())
 	})
 );
@@ -65,10 +70,11 @@ export const pageContacts = query(CursorSchema, async (cursor) => {
 });
 ```
 
-Two things make this correct and fast:
+Three things make this correct, fast, and *safe*:
 
 - **`limit(PAGE + 1)`** — fetching one extra row is how you know whether a "next page" exists without a second `count(*)` query (which would itself be O(n)).
 - **The composite `or(...)`** — `created_at < X OR (created_at = X AND id < Y)`. This is the keyset predicate; it's exactly served by the `(user_id, created_at desc)` index from Module 4.1 (extend it to include `id` for the perfect tiebreak).
+- **The cursor is a string built into a PostgREST filter — so it is a injection sink.** PostgREST's `.or()` argument is parsed: `,` separates terms, `()` groups, `.` separates `column.op.value`. An attacker who controls `createdAt` and can put a `,` or `)` in it can append filter terms — e.g. smuggle `,user_id.neq.<uuid>` to widen the result set past what the caller should see. The defence is **not** "RLS will save us" (RLS constrains rows, not which filter PostgREST parses); the defence is making the value structurally incapable of containing those metacharacters. `v.isoTimestamp()` guarantees `createdAt` matches `YYYY-MM-DDTHH:MM:SS(.sss)Z` — digits, `-`, `T`, `:`, `.`, `Z` only, no `,` `(` `)`. `v.uuid()` guarantees `id` is hex + hyphens. With both strictly validated, the interpolation is provably safe. *Never interpolate into a query-language string without proving the input alphabet excludes that language's metacharacters — "it's just a date" is how injection ships.*
 
 ## Step 2 — Extend the index for the tiebreaker
 

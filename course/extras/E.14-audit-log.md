@@ -19,7 +19,7 @@ Corollary: **capture at the lowest layer that sees every write.** Application-le
 ```sql
 -- supabase/migrations/20260518000000_audit_log.sql
 create table public.audit_log (
-  id          bigint generated always as identity primary key,
+  id          bigint generated always as identity,
   occurred_at timestamptz not null default now(),
   user_id     uuid,                       -- the row owner (for RLS)
   actor_id    uuid,                       -- who caused it (auth.uid())
@@ -27,8 +27,18 @@ create table public.audit_log (
   record_id   uuid not null,
   action      text not null check (action in ('INSERT','UPDATE','DELETE')),
   old_data    jsonb,
-  new_data    jsonb
-);
+  new_data    jsonb,
+  primary key (id, occurred_at)            -- partition key must be in the PK
+) partition by range (occurred_at);
+
+-- One partition per month. Create the current + next month up front;
+-- a monthly cron (Step 7) rolls new ones forward.
+create table public.audit_log_2026_05
+  partition of public.audit_log
+  for values from ('2026-05-01') to ('2026-06-01');
+create table public.audit_log_2026_06
+  partition of public.audit_log
+  for values from ('2026-06-01') to ('2026-07-01');
 
 create index audit_log_user_occurred_idx
   on public.audit_log (user_id, occurred_at desc);
@@ -37,7 +47,7 @@ create index audit_log_record_idx
   on public.audit_log (table_name, record_id, occurred_at desc);
 ```
 
-`generated always as identity` — the id can't be set or reset by an insert. `old_data`/`new_data` as `jsonb` means one audit table serves every audited table without a schema per table.
+`generated always as identity` — the id can't be set or reset by an insert. The PK is `(id, occurred_at)` because Postgres requires the partition key in the primary key. **Why partitioned?** It makes retention a metadata operation (`DROP TABLE` the old month — O(1), no bloat) instead of a giant `DELETE` that fights the immutability guard we're about to add. `old_data`/`new_data` as `jsonb` means one audit table serves every audited table without a schema per table.
 
 ## Step 2 — The capture trigger
 
@@ -93,18 +103,25 @@ create policy "Audit: read own"
   on public.audit_log for select
   using (auth.uid() = user_id);
 
--- No INSERT/UPDATE/DELETE policies at all → the only way a row
--- enters this table is the SECURITY DEFINER trigger.
+-- No INSERT/UPDATE/DELETE policies → RLS-bound roles can't mutate it.
+-- Be explicit at the grant layer too:
+revoke insert, update, delete on public.audit_log from authenticated, anon;
 
--- Belt-and-braces: a rule that hard-blocks mutation even from
--- roles that bypass RLS (e.g. the service key).
-create rule audit_log_no_update as
-  on update to public.audit_log do instead nothing;
-create rule audit_log_no_delete as
-  on delete to public.audit_log do instead nothing;
+-- The real guarantee, for EVERY role including the service key:
+-- a row-level trigger that refuses UPDATE and DELETE outright.
+create or replace function public.fn_audit_immutable()
+returns trigger language plpgsql as $$
+begin
+  raise exception 'audit_log is append-only (% blocked)', tg_op;
+end;
+$$;
+
+create trigger trg_audit_immutable
+  before update or delete on public.audit_log
+  for each row execute function public.fn_audit_immutable();
 ```
 
-The combination is the point: no write policy means RLS-bound roles can't mutate it; the `DO INSTEAD NOTHING` rules mean even RLS-*bypassing* roles (the service key your server uses) silently can't either. The trigger is the *only* writer. That is what makes the log trustworthy.
+A row-level `BEFORE UPDATE OR DELETE` trigger fires for **every** role — `authenticated`, the service key, even a superuser running `DELETE FROM audit_log`. That is the property a blanket `CREATE RULE ... DO INSTEAD NOTHING` *seems* to give but botches: a `DO INSTEAD NOTHING` delete rule also silently swallows your own retention job (Step 7), so you'd believe you were purging and never be — a contradiction that ships as "why is this table 400 GB?". The trigger blocks row deletes for everyone *and* is bypassed by `DROP TABLE` on a partition (DDL doesn't fire row triggers) — which is exactly, and only, how retention is allowed to remove data. The capture trigger from Step 2 is the *only* writer; nothing can rewrite or row-delete history. That is what makes the log trustworthy.
 
 ## Step 4 — A query to read a record's history
 
@@ -242,24 +259,57 @@ Pure, testable, ignores machine-noise columns (`updated_at`, the `search_tsv` fr
 
 ## Step 7 — Retention
 
-Audit logs grow forever and most rows are never read. Keep them queryable but bounded with a scheduled purge (Supabase `pg_cron`):
+Audit logs grow forever and most rows are never read. The immutability trigger from Step 3 blocks `DELETE` for *everyone* — deliberately. So retention does not delete rows; it **drops whole monthly partitions**. `DROP TABLE` is DDL: it doesn't fire the row-level immutability trigger, it's O(1) regardless of row count, and it returns the disk immediately with zero vacuum debt.
+
+Two `pg_cron` jobs: one rolls next month's partition forward, one drops partitions past the retention window.
 
 ```sql
-select cron.schedule(
-  'purge-old-audit',
-  '0 3 * * *',
-  $$ delete from public.audit_log where occurred_at < now() - interval '2 years' $$
-);
+-- 1. Create next month's partition on the 25th, every month.
+select cron.schedule('audit-roll-partition', '0 2 25 * *', $$
+  do $body$
+  declare
+    start_d date := date_trunc('month', now() + interval '1 month');
+    part    text := 'audit_log_' || to_char(start_d, 'YYYY_MM');
+  begin
+    execute format(
+      'create table if not exists public.%I partition of public.audit_log
+         for values from (%L) to (%L)',
+      part, start_d, start_d + interval '1 month'
+    );
+  end $body$;
+$$);
+
+-- 2. Drop partitions older than 24 months, every month.
+select cron.schedule('audit-drop-old', '30 3 1 * *', $$
+  do $body$
+  declare
+    r record;
+    cutoff date := date_trunc('month', now() - interval '24 months');
+  begin
+    for r in
+      select inhrelid::regclass::text as part
+      from pg_inherits
+      where inhparent = 'public.audit_log'::regclass
+    loop
+      if substring(r.part from 'audit_log_(\d{4}_\d{2})') is not null
+         and to_date(substring(r.part from 'audit_log_(\d{4}_\d{2})'), 'YYYY_MM') < cutoff
+      then
+        execute format('drop table %s', r.part);
+      end if;
+    end loop;
+  end $body$;
+$$);
 ```
 
-Two years covers SOC 2 and most disputes. The `DO INSTEAD NOTHING` delete rule from Step 3 would block *this* too — so the purge runs as a `cron`-owned job that's exempt, or you scope the rule to non-superuser roles. Decide the retention window deliberately; "forever" is a cost and a liability, not a virtue.
+24 months covers SOC 2 and most disputes. Decide the window deliberately — "forever" is a cost and a liability (you're storing PII you no longer have a reason to keep), not a virtue. Note the design property: the *only* way data ever leaves this table is dropping an entire aged partition. There is no code path, for any role, that deletes an individual audit row. That is what "append-only" has to mean to be worth anything.
 
 ## Verify
 
 - Edit a contact's phone → a row appears in `audit_log` with `action='UPDATE'`, correct `old_data`/`new_data`, and `actor_id = auth.uid()`.
 - Delete a contact → `action='DELETE'`, full `old_data` snapshot, the row survives in the log after the contact is gone.
-- As the service role, `UPDATE audit_log SET action='INSERT'` → zero rows affected (the rule blocks it).
-- `DELETE FROM audit_log` as service role → zero rows affected.
+- As the service role, `UPDATE audit_log SET action='INSERT'` → raises `audit_log is append-only (UPDATE blocked)`.
+- `DELETE FROM audit_log` as the service role *or* as a superuser → same exception. No role can row-delete history.
+- Run the `audit-drop-old` job manually → an aged partition is gone (DDL bypasses the trigger); recent rows untouched.
 - Sign in as user B, query `contactHistory` with user A's contact id → empty (RLS).
 - Change a contact via the SQL editor (not the app) → still audited (trigger is below the app).
 - The timeline renders edits as readable field diffs, newest first.
@@ -267,8 +317,10 @@ Two years covers SOC 2 and most disputes. The `DO INSTEAD NOTHING` delete rule f
 ## Common traps
 
 - **Logging from application code.** Misses the console, the migration, the cron, the bug, the breach. Capture in a trigger.
-- **An audit table the app can write/edit.** A compromised app key can then rewrite history; the log proves nothing. Trigger-only writes, mutation blocked by rule.
-- **`before` trigger instead of `after`.** Records writes that then roll back — phantom history. `after` records only what committed.
+- **An audit table the app can write/edit.** A compromised app key can then rewrite history; the log proves nothing. Trigger-only writes; UPDATE/DELETE blocked by a row trigger for every role.
+- **`DO INSTEAD NOTHING` rules for immutability.** They *silently* swallow the write — including your own retention job — so you believe you're purging and aren't, and you believe deletes fail loudly and they don't. A `RAISE EXCEPTION` trigger fails loud; partition `DROP` is the one sanctioned exit.
+- **Row-`DELETE` retention on an append-only table.** It either fights the immutability guard or forces you to weaken it. Partition by month; drop whole partitions. Retention with zero `DELETE`s.
+- **`before` trigger instead of `after` (for capture).** Records writes that then roll back — phantom history. `after` records only what committed. (The *immutability* guard is correctly `before` — you must reject the mutation before it happens.)
 - **No `security definer`.** The trigger fails because the calling user has no insert grant on `audit_log`. Definer rights are required and correct here.
 - **Storing per-column instead of `to_jsonb(row)`.** Every new column needs an audit schema change. Snapshot the whole row as `jsonb`; it's schema-proof.
 - **No retention policy.** The table outgrows the rest of the database, backups balloon, and you're storing PII you no longer have a reason to keep. Bound it on purpose.
@@ -276,6 +328,6 @@ Two years covers SOC 2 and most disputes. The `DO INSTEAD NOTHING` delete rule f
 
 ## Recap
 
-An append-only `jsonb` history table, a `security definer` trigger that captures every write below the app, RLS for per-user reads, mutation hard-blocked even for the service role, a pure diff helper, a readable Svelte timeline, and a deliberate retention window. The question "who changed this, and when?" now has a trustworthy answer.
+A monthly-partitioned `jsonb` history table, a `security definer` trigger that captures every write below the app, RLS for per-user reads, UPDATE/DELETE refused for *every* role by a row trigger that fails loud, retention by partition-drop (the one sanctioned exit), a pure diff helper, and a readable Svelte timeline. The question "who changed this, and when?" now has an answer nothing in the system can quietly forge or erase.
 
 Next: [E.15 Error tracking with Sentry →](./E.15-error-tracking-sentry.md)

@@ -314,23 +314,29 @@ The `<input type="file">` is visually hidden (`sr-only`) but wrapped in a `<labe
 
 ## Step 8 — Wire it into the contact row
 
-`signAvatarUrl` is called once when the contact list loads, batched. Simpler: store nothing client-side and resolve URLs in the `getContacts` query, server-side, where the signed URL is cheap to mint:
+Resolve URLs server-side in the `getContacts` query — but **in one batch call, not one per row**. Supabase exposes `createSignedUrls` (plural) precisely so a page of avatars costs one Storage round trip, not N:
 
 ```ts
-// in getContacts (Module 4.5), after fetching rows:
-const withAvatars = await Promise.all(
-	data.map(async (c) => {
-		if (!c.avatar_path) return { ...c, avatarUrl: null };
-		const { data: signed } = await event.locals.supabase.storage
-			.from('avatars')
-			.createSignedUrl(c.avatar_path, 60 * 60);
-		return { ...c, avatarUrl: signed?.signedUrl ?? null };
-	})
-);
-return withAvatars;
+// in getContacts (Module 4.5), after fetching `data`:
+const paths = data.flatMap((c) => (c.avatar_path ? [c.avatar_path] : []));
+
+const signedByPath = new Map<string, string>();
+if (paths.length > 0) {
+	const { data: signed } = await event.locals.supabase.storage
+		.from('avatars')
+		.createSignedUrls(paths, 60 * 60); // ONE request for the whole page
+	for (const s of signed ?? []) {
+		if (s.path && s.signedUrl) signedByPath.set(s.path, s.signedUrl);
+	}
+}
+
+return data.map((c) => ({
+	...c,
+	avatarUrl: c.avatar_path ? (signedByPath.get(c.avatar_path) ?? null) : null
+}));
 ```
 
-Signed URLs are generated server-side in the same request, cached for an hour by the browser. No extra client round trip per avatar.
+The naive version — `Promise.all(data.map(c => createSignedUrl(c.avatar_path)))` — is an **N+1**: a 50-row page fires 50 Storage requests, serialised by the connection pool, and your "fast" list is now bound by the slowest of fifty network calls. `createSignedUrls` collapses that to one. The signed URLs are cached an hour by the browser; no extra client round trip per avatar. *This is the difference an L7 review exists to catch — the naive code works in the demo and dies at 50 contacts.*
 
 ## Verify
 
