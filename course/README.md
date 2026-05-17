@@ -145,6 +145,12 @@ Optional lessons, independent of one another. The centrepiece is a custom Simple
 - [E.7 CSV import for contacts](./extras/E.7-csv-import.md)
 - [E.8 Keyboard shortcuts](./extras/E.8-keyboard-shortcuts.md)
 - [E.9 Rate limiting sensitive endpoints](./extras/E.9-rate-limiting.md)
+- [E.10 Contact avatars with Supabase Storage](./extras/E.10-avatars-supabase-storage.md)
+- [E.11 Full-text contact search](./extras/E.11-fulltext-search.md)
+- [E.12 Cursor pagination & infinite scroll](./extras/E.12-cursor-pagination.md)
+- [E.13 Realtime contact sync](./extras/E.13-realtime-sync.md)
+- [E.14 Audit log](./extras/E.14-audit-log.md)
+- [E.15 Error tracking with Sentry](./extras/E.15-error-tracking-sentry.md)
 
 ### [Thank you](./thank-you.md)
 

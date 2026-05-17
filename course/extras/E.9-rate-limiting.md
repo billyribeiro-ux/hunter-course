@@ -258,4 +258,4 @@ That's the Extras module. If you made it through, Contactly now has:
 
 Every lesson enhances a function you'd already built in the core course. None are required; each is a step from "shipped" to "truly finished."
 
-Next: [Thank you →](../thank-you.md)
+Next: [E.10 Contact avatars with Supabase Storage →](./E.10-avatars-supabase-storage.md)

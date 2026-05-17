@@ -30,6 +30,17 @@ The cart and checkout span four lessons because they're one coherent redesign, n
 - [E.8 Keyboard shortcuts](./E.8-keyboard-shortcuts.md)
 - [E.9 Rate limiting sensitive endpoints](./E.9-rate-limiting.md)
 
+### Advanced — scale, data & operations
+
+These go deeper: object storage, full-text search, flat-time pagination, realtime, an immutable audit trail, and production error tracking. They fill the gaps the core course deliberately deferred.
+
+- [E.10 Contact avatars with Supabase Storage](./E.10-avatars-supabase-storage.md)
+- [E.11 Full-text contact search](./E.11-fulltext-search.md)
+- [E.12 Cursor pagination & infinite scroll](./E.12-cursor-pagination.md)
+- [E.13 Realtime contact sync](./E.13-realtime-sync.md)
+- [E.14 Audit log](./E.14-audit-log.md)
+- [E.15 Error tracking with Sentry](./E.15-error-tracking-sentry.md)
+
 ## How to read this module
 
 Each Extras lesson assumes you've finished Modules 1–13. They build on existing code — the remote functions from Module 4, the Stripe integration from Module 6, the entitlements from Module 10, and the toast system from Module 13.1.
