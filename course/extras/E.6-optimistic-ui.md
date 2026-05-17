@@ -44,34 +44,36 @@ Pessimistic: we wait for the server, then render. Swap the order:
 	import type { Contact } from '$lib/shared/contact-types';
 
 	let { data } = $props();
-	let contacts = $state<Contact[]>(data.contacts);
 
 	interface PendingContact extends Contact {
 		pending: true;
 		clientId: string;
 	}
 
+	// Server data stays reactive; optimistic rows live in a separate overlay.
+	let serverContacts = $derived(data.contacts as Contact[]);
+	let pending = $state<PendingContact[]>([]);
+
+	let contacts = $derived<(Contact | PendingContact)[]>([...pending, ...serverContacts]);
+
 	async function onSubmit(formData: FormData) {
 		const clientId = crypto.randomUUID();
 		const optimistic: PendingContact = {
-			id: clientId, // temporary; will be replaced
+			id: clientId, // temporary; replaced by the server row on success
 			name: formData.get('name') as string,
 			email: formData.get('email') as string,
 			createdAt: new Date().toISOString(),
 			pending: true,
 			clientId
 		};
-		contacts = [optimistic, ...contacts];
+		pending = [optimistic, ...pending];
 
 		const result = await createContact(formData);
 		if (result.ok) {
-			// Replace the optimistic row with the canonical one
-			contacts = contacts.map((c) =>
-				'clientId' in c && c.clientId === clientId ? result.contact : c
-			);
+			// Server now owns this row; drop the optimistic placeholder.
+			pending = pending.filter((c) => c.clientId !== clientId);
 		} else {
-			// Roll back
-			contacts = contacts.filter((c) => !('clientId' in c) || c.clientId !== clientId);
+			pending = pending.filter((c) => c.clientId !== clientId);
 			toasts.error(result.error);
 		}
 	}
@@ -82,7 +84,7 @@ Pessimistic: we wait for the server, then render. Swap the order:
 {/each}
 ```
 
-The row is visible instantly. If the server says yes, the temporary ID is swapped for the real one. If no, the row is removed and a toast explains why.
+Why a derived overlay instead of one mutable `$state` array seeded from `data.contacts`? Seeding `$state` directly from a prop only captures the *initial* value — when `createContact().refresh()` revalidates the server data, a one-time-seeded array would go stale (Svelte even warns about this: `state_referenced_locally`). Keeping `serverContacts` as `$derived(data.contacts)` means it always reflects the latest server truth; the optimistic row lives in a separate `pending` array and the rendered list is a `$derived` merge of the two. The row is visible instantly. When the server confirms, we drop the placeholder and the refreshed server row takes its place — no ID swap, no flicker. On failure, the placeholder is removed and a toast explains why.
 
 ## Step 2 — The pending visual
 

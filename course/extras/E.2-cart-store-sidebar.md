@@ -71,13 +71,14 @@ function loadInitial(): CartLine[] {
 function createCart() {
 	let lines = $state<CartLine[]>(loadInitial());
 
-	$effect.root(() => {
-		$effect(() => {
-			if (!browser) return;
-			const snapshot: CartSnapshot = { lines, updatedAt: new Date().toISOString() };
-			sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+	if (browser) {
+		$effect.root(() => {
+			$effect(() => {
+				const snapshot: CartSnapshot = { lines, updatedAt: new Date().toISOString() };
+				sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+			});
 		});
-	});
+	}
 
 	function addSubscription(line: SubscriptionLine) {
 		lines = [
@@ -115,7 +116,7 @@ export const cart = createCart();
 
 Notes:
 
-- **`$effect.root`** wraps the persistence effect so it lives for the app's lifetime, not a component's. Otherwise Svelte would warn when the store is imported outside a component context.
+- **`$effect.root` inside `if (browser)`**. `$effect` requires a parent effect or a root scope; `$effect.root` provides that scope so the persistence effect can run from a module-level factory. The `browser` guard matters because this factory runs once per request during SSR — without the guard you'd allocate one effect root per request on the server, and `sessionStorage` doesn't exist there anyway. We discard the cleanup function `$effect.root` returns: this is a singleton store that lives as long as the page, so there's nothing to dispose.
 - **Single subscription enforcement** — `addSubscription` removes any existing subscription before adding the new one. Contactly never lets a user buy Plus *and* Pro simultaneously; swap, don't append.
 - **`sessionStorage` not `localStorage`** — cart survives refresh within the tab but doesn't leak across devices or closed tabs. Stale carts are a UX footgun (price changes, expired trials).
 
@@ -374,8 +375,10 @@ The cart store persists via `sessionStorage`, so even if the user hard-refreshes
 
 ```svelte
 <script lang="ts">
+	import type { Snippet } from 'svelte';
+	import type { LayoutData } from './$types';
 	import CartSidebar from '$lib/components/CartSidebar.svelte';
-	let { children, data } = $props();
+	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 </script>
 
 <div class="checkout-grid">

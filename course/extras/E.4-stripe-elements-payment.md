@@ -168,7 +168,7 @@ Replace the placeholder from E.3 with the real thing.
 	let intentKind = $state<'setup' | 'payment' | null>(null);
 
 	let stripe: Stripe | null = null;
-	let elements: StripeElements | null = null;
+	let elements = $state<StripeElements | null>(null);
 
 	onMount(async () => {
 		const subscriptionLine = cart.lines.find((l) => l.kind === 'subscription');

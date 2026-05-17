@@ -96,10 +96,11 @@ A single global listener dispatches to registered shortcuts. Each consumer compo
 
 ```svelte
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { onDestroy } from 'svelte';
 	import { shortcuts, type Shortcut } from '$lib/stores/shortcuts.svelte.ts';
 
-	let { children } = $props();
+	let { children }: { children: Snippet } = $props();
 
 	function useShortcut(s: Shortcut) {
 		const unregister = shortcuts.register(s);
@@ -173,6 +174,11 @@ Components own their own shortcut registrations. When they unmount, their shortc
 			: commands
 	);
 	let highlighted = $state(0);
+	let inputEl = $state<HTMLInputElement | null>(null);
+
+	$effect(() => {
+		if (open && inputEl) inputEl.focus();
+	});
 
 	function onKey(e: KeyboardEvent) {
 		if (e.key === 'Escape') open = false;
@@ -192,27 +198,38 @@ Components own their own shortcut registrations. When they unmount, their shortc
 	}
 </script>
 
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape') open = false; }} />
+
 {#if open}
-	<div class="overlay" role="dialog" aria-modal="true" onclick={() => (open = false)}>
-		<div class="palette" role="presentation" onclick={(e) => e.stopPropagation()}>
+	<div class="modal-root">
+		<button
+			type="button"
+			class="overlay"
+			aria-label="Close command palette"
+			onclick={() => (open = false)}
+		></button>
+		<div class="palette" role="dialog" aria-modal="true" aria-label="Command palette">
 			<input
 				type="text"
 				placeholder="Type a command…"
+				bind:this={inputEl}
 				bind:value={query}
 				oninput={() => (highlighted = 0)}
 				onkeydown={onKey}
-				autofocus
 			/>
 			<ul>
 				{#each filtered as cmd, i (cmd.id)}
-					<li
-						class:highlighted={i === highlighted}
-						onclick={() => {
-							cmd.action();
-							open = false;
-						}}
-					>
-						{cmd.label}
+					<li>
+						<button
+							type="button"
+							class:highlighted={i === highlighted}
+							onclick={() => {
+								cmd.action();
+								open = false;
+							}}
+						>
+							{cmd.label}
+						</button>
 					</li>
 				{/each}
 				{#if filtered.length === 0}
@@ -224,17 +241,25 @@ Components own their own shortcut registrations. When they unmount, their shortc
 {/if}
 
 <style>
-	.overlay {
+	.modal-root {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.4);
 		display: flex;
 		justify-content: center;
 		align-items: flex-start;
 		padding-top: 10vh;
 		z-index: 10000;
 	}
+	.overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.4);
+		border: 0;
+		padding: 0;
+		cursor: default;
+	}
 	.palette {
+		position: relative;
 		background: white;
 		border-radius: 0.75rem;
 		width: min(36rem, 90vw);
@@ -255,16 +280,22 @@ Components own their own shortcut registrations. When they unmount, their shortc
 		max-height: 20rem;
 		overflow-y: auto;
 	}
-	li {
+	li button {
+		display: block;
+		width: 100%;
+		text-align: left;
 		padding: 0.65rem 1rem;
+		background: transparent;
+		border: 0;
+		font: inherit;
 		cursor: pointer;
 	}
-	li.highlighted {
+	li button.highlighted {
 		background: #eef2ff;
 	}
 	li.empty {
+		padding: 0.65rem 1rem;
 		color: #9ca3af;
-		cursor: default;
 	}
 </style>
 ```
@@ -299,12 +330,20 @@ Bind `?` to open a modal listing every shortcut registered in the current scope:
 	);
 </script>
 
+<svelte:window onkeydown={(e) => { if (open && e.key === 'Escape') open = false; }} />
+
 {#if open}
-	<div class="overlay" onclick={() => (open = false)}>
-		<div class="sheet" onclick={(e) => e.stopPropagation()}>
+	<div class="modal-root">
+		<button
+			type="button"
+			class="overlay"
+			aria-label="Close keyboard shortcuts"
+			onclick={() => (open = false)}
+		></button>
+		<div class="sheet" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
 			<h2>Keyboard shortcuts</h2>
 			<dl>
-				{#each visible as s}
+				{#each visible as s (s.keys)}
 					<div>
 						<dt>{s.label}</dt>
 						<dd><kbd>{s.keys}</kbd></dd>

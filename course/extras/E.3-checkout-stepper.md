@@ -141,7 +141,7 @@ Three pieces of state: which step we're on, which steps are complete, and the bi
 
 <nav class="stepper" aria-label="Checkout progress">
 	<ol>
-		{#each STEPS as step}
+		{#each STEPS as step (step)}
 			{@const isActive = checkout.currentStep === step}
 			{@const isComplete = checkout.completed.has(step)}
 			{@const isReachable = canAdvanceTo(step, checkout.completed)}

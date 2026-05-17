@@ -63,7 +63,7 @@ Corollary: **validate on the client first, but treat the server as the real vali
 
 		{#if parseResult.errors.length > 0}
 			<ul class="errors">
-				{#each parseResult.errors as err}
+				{#each parseResult.errors as err, i (i)}
 					<li>Row {err.row}: {err.message}</li>
 				{/each}
 			</ul>
