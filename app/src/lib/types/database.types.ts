@@ -193,9 +193,37 @@ export interface Database {
 				>;
 				Relationships: [];
 			};
+			stripe_events: {
+				Row: {
+					id: string;
+					type: string;
+					received_at: string;
+				};
+				Insert: {
+					id: string;
+					type: string;
+					received_at?: string;
+				};
+				Update: {
+					id?: string;
+					type?: string;
+					received_at?: string;
+				};
+				Relationships: [];
+			};
 		};
 		Views: Record<string, never>;
-		Functions: Record<string, never>;
+		Functions: {
+			insert_contact_if_under_limit: {
+				Args: {
+					p_name: string;
+					p_email: string | null;
+					p_phone: string | null;
+					p_notes: string | null;
+				};
+				Returns: Database['public']['Tables']['contacts']['Row'];
+			};
+		};
 		Enums: Record<string, never>;
 		CompositeTypes: Record<string, never>;
 	};

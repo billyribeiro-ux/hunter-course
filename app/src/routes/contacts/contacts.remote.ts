@@ -1,15 +1,29 @@
 import { query, form, command, getRequestEvent } from '$app/server';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { getActiveTier, tierLimit } from '$lib/server/tiers';
 
 const IdSchema = z.string().uuid();
 
+// `^[^<>]+$` is a belt-and-brace XSS guard: even though Svelte auto-escapes
+// `{name}` interpolations, a future `{@html name}` regression would otherwise
+// be exploitable.
 const ContactSchema = z.object({
-	name: z.string().min(1, 'Name is required.').max(120),
+	name: z
+		.string()
+		.min(1, 'Name is required.')
+		.max(120)
+		.regex(/^[^<>]+$/, 'Name cannot contain < or >.'),
 	email: z.string().email().or(z.literal('')).optional(),
-	phone: z.string().max(40).optional(),
-	notes: z.string().max(2000).optional()
+	phone: z
+		.string()
+		.max(40)
+		.regex(/^[^<>]*$/, 'Phone cannot contain < or >.')
+		.optional(),
+	notes: z
+		.string()
+		.max(2000)
+		.regex(/^[^<>]*$/, 'Notes cannot contain < or >.')
+		.optional()
 });
 
 const UpdateSchema = ContactSchema.extend({ id: IdSchema });
@@ -31,32 +45,28 @@ export const getContacts = query(async () => {
 	return data;
 });
 
-/** Create a contact. Validates tier limit server-side. */
+/**
+ * Create a contact via the `insert_contact_if_under_limit` RPC, which takes
+ * a per-user advisory lock so concurrent inserts can't both squeak past the
+ * tier limit (the read+insert is now atomic at the database level).
+ */
 export const createContact = form(ContactSchema, async (input) => {
 	const { locals } = requireUser();
-	const userId = locals.user!.id;
 
-	const tier = await getActiveTier(locals.supabaseAdmin, userId);
-	const limit = tierLimit(tier);
-	if (limit !== Infinity) {
-		const { count } = await locals.supabase
-			.from('contacts')
-			.select('id', { count: 'exact', head: true });
-		if ((count ?? 0) >= limit) {
-			return { error: `Contact limit reached for the ${tier} plan.` };
+	const { error: err } = await locals.supabase.rpc('insert_contact_if_under_limit', {
+		p_name: input.name,
+		p_email: input.email || null,
+		p_phone: input.phone || null,
+		p_notes: input.notes || null
+	});
+
+	if (err) {
+		if (err.message?.includes('contact_limit_reached')) {
+			return { error: 'Contact limit reached for your plan.' };
 		}
+		return { error: 'Could not create contact.' };
 	}
 
-	const { error: err } = await locals.supabase.from('contacts').insert({
-		user_id: userId,
-		name: input.name,
-		email: input.email || null,
-		phone: input.phone || null,
-		notes: input.notes || null
-	});
-	if (err) return { error: 'Could not create contact.' };
-
-	// Single-flight refresh: push fresh list down with the same response.
 	void getContacts().refresh();
 	return { ok: true };
 });

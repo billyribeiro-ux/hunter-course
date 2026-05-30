@@ -1,10 +1,17 @@
 import { form, getRequestEvent } from '$app/server';
 import { redirect } from '@sveltejs/kit';
 import { z } from 'zod';
+import { enforce, clientIp } from '$lib/server/rate-limit';
 
 const RegisterSchema = z
 	.object({
-		full_name: z.string().min(2, 'Please enter your name.'),
+		// Block angle-brackets so a future {@html ...} on full_name can't be
+		// weaponised. Svelte auto-escapes interpolations, so this is belt-and-brace.
+		full_name: z
+			.string()
+			.min(2, 'Please enter your name.')
+			.max(120)
+			.regex(/^[^<>]+$/, 'Name cannot contain < or >.'),
 		email: z.string().email('Enter a valid email.'),
 		_password: z.string().min(8, 'Password must be at least 8 characters.'),
 		_confirm: z.string()
@@ -14,23 +21,40 @@ const RegisterSchema = z
 		path: ['_confirm']
 	});
 
+// Constant response used whether or not the email is already registered.
+// Prevents user enumeration: an attacker submitting candidate emails gets
+// the same message either way.
+const GENERIC_OK = {
+	message: "If that email isn't already registered, check your inbox to confirm."
+};
+
 export const register = form(RegisterSchema, async ({ full_name, email, _password }) => {
-	const { locals, url } = getRequestEvent();
-	const { data, error } = await locals.supabase.auth.signUp({
+	const event = getRequestEvent();
+	const ip = clientIp(event);
+	await enforce(event, 'signup', `ip:${ip}`);
+
+	const { data, error } = await event.locals.supabase.auth.signUp({
 		email,
 		password: _password,
 		options: {
-			emailRedirectTo: `${url.origin}/auth/callback`,
+			emailRedirectTo: `${event.url.origin}/auth/callback`,
 			data: { full_name }
 		}
 	});
 
-	if (error || !data.user) {
-		return { error: error?.message ?? 'Could not create account.' };
+	// Two real failure modes we *should* surface to the user:
+	//  - Password rejected by Supabase policy (too short, pwned, etc.)
+	//  - Network / transient errors
+	// Everything else (including "user already registered") collapses into
+	// the constant GENERIC_OK response so we don't leak account existence.
+	if (error) {
+		const code = error.code ?? '';
+		const isEnumerationLeak = code === 'user_already_exists' || /already/i.test(error.message);
+		if (isEnumerationLeak) return GENERIC_OK;
+		return { error: error.message };
 	}
 
-	// A trigger on auth.users creates the profile row; we only need to
-	// confirm the write here if the user is already signed in (email confirm off).
+	// With email confirmations off in local dev, signUp leaves us signed in.
 	if (data.session) redirect(303, '/contacts');
-	return { message: 'Check your email to confirm your account.' };
+	return GENERIC_OK;
 });

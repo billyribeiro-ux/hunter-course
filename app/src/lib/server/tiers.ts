@@ -12,6 +12,12 @@ const ACTIVE_STATUSES = new Set(['trialing', 'active']);
  * Principal Engineer note: we never ask Stripe directly from render paths.
  * Every entitlement decision reads from our `billing_subscriptions` mirror.
  * The mirror is the cache; Stripe webhooks are the write-through.
+ *
+ * If an active subscription exists but its price has a null `lookup_key` —
+ * or a lookup_key that doesn't map to a tier — that's a billing-correctness
+ * incident, not a "fall back to free" situation. Loudly: a paying user would
+ * silently lose entitlements. We log and throw so the caller can decide
+ * (most call sites bubble to a 500 + alert).
  */
 export async function getActiveTier(admin: Admin, userId: string): Promise<Tier> {
 	const { data } = await admin
@@ -25,9 +31,23 @@ export async function getActiveTier(admin: Admin, userId: string): Promise<Tier>
 	const lookupKey = (
 		active.billing_prices as unknown as { lookup_key: string | null }
 	)?.lookup_key;
-	if (!lookupKey) return 'free';
 
-	return tierByLookupKey(lookupKey)?.tier ?? 'free';
+	if (!lookupKey) {
+		console.error(
+			`[tiers] active subscription for user=${userId} price=${active.price_id} has null lookup_key — entitlements unresolved`
+		);
+		throw new Error('Unresolved tier: subscription price has no lookup_key');
+	}
+
+	const tier = tierByLookupKey(lookupKey)?.tier;
+	if (!tier) {
+		console.error(
+			`[tiers] active subscription for user=${userId} price=${active.price_id} has unmapped lookup_key=${lookupKey}`
+		);
+		throw new Error(`Unresolved tier: unknown lookup_key ${lookupKey}`);
+	}
+
+	return tier;
 }
 
 /**

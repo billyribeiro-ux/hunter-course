@@ -13,7 +13,7 @@
 	<div class="mx-auto max-w-4xl px-6 pb-24 pt-24 text-center">
 		<span class="mb-6 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-surface-1 px-3 py-1 text-xs text-fg-muted">
 			<span class="inline-block h-1.5 w-1.5 rounded-full bg-success"></span>
-			Principal Engineer Level 7+ · April 2026 Edition
+			Principal Engineer Level 7+ · May 2026 Edition
 		</span>
 		<h1 class="text-5xl font-semibold tracking-tight md:text-6xl">
 			Contacts,
@@ -22,7 +22,7 @@
 		<p class="mx-auto mt-5 max-w-2xl text-lg text-fg-muted">
 			Contactly is a lightweight contact-management SaaS demonstrating every
 			piece of a production app — tiered pricing, free trials, granular access,
-			and a real CI/CD pipeline — built with the April 2026 web stack.
+			and a real CI/CD pipeline — built with the May 2026 web stack.
 		</p>
 		<div class="mt-9 flex flex-wrap justify-center gap-3">
 			{#if data.user}

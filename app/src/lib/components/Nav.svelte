@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import type { User } from '@supabase/supabase-js';
+	import type { SafeUser } from '../../app';
 	import Logo from './Logo.svelte';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import Button from './Button.svelte';
 
 	interface Props {
-		user: User | null;
+		user: SafeUser | null;
 	}
 
 	let { user }: Props = $props();

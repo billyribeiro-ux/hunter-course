@@ -3,9 +3,10 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { Snippet } from 'svelte';
+	import type { SafeUser } from '../app';
 
 	interface Props {
-		data: { user: import('@supabase/supabase-js').User | null };
+		data: { user: SafeUser | null };
 		children: Snippet;
 	}
 
