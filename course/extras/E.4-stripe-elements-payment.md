@@ -17,7 +17,7 @@ Corollary: **the PaymentIntent is created on the server, not the client.** Amoun
 ## Step 1 — Install the Stripe client library
 
 ```bash
-pnpm --filter app add @stripe/stripe-js@5.3.0
+pnpm --filter app add @stripe/stripe-js@9.7.0
 ```
 
 Pinned. `@stripe/stripe-js` is the browser loader that fetches `stripe.js` from Stripe's CDN (required — you must not self-host `stripe.js`, that breaks PCI compliance).

@@ -8,7 +8,7 @@ If you worked through every module — no skips, no "I'll come back to that" —
 
 - A full-stack SaaS app with authentication, CRUD, row-level security, tier-based access control, Stripe billing, free trials (with and without a card), Customer Portal self-service, end-to-end tests, a CI/CD pipeline, and a production deploy under your own domain.
 - An understanding of *why* each piece is built the way it is — what the trade-offs are, which shortcuts look tempting but will hurt later, and where the Principal Engineer lens actually changes decisions.
-- Working knowledge of the April 2026 SvelteKit + Svelte 5 stack, including the remote-functions pattern (`query`, `form`, `command`), runes (`$state`, `$derived`, `$effect`), and the `{@render children()}` composition model.
+- Working knowledge of the May 2026 SvelteKit + Svelte 5 stack, including the remote-functions pattern (`query`, `form`, `command`), runes (`$state`, `$derived`, `$effect`), and the `{@render children()}` composition model.
 
 That is *a lot*. Take a second to notice.
 

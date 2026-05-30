@@ -178,6 +178,6 @@ When you're done, you'll have shipped an app that:
 - Uses **tier-based access control** everywhere: server-side guards *and* disabled UI buttons with upgrade CTAs.
 - Has **end-to-end Playwright tests** that run in CI against a local Supabase.
 - Deploys via **GitHub Actions → Vercel** with Supabase DB migrations pushed as part of the pipeline.
-- Is built almost entirely with **SvelteKit remote functions** (`query`, `form`, `command`) — the April 2026 hot pattern.
+- Is built almost entirely with **SvelteKit remote functions** (`query`, `form`, `command`) — the May 2026 hot pattern.
 
 Let's go.

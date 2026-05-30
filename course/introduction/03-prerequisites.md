@@ -26,15 +26,15 @@ node -v
 # v22.15.0
 ```
 
-### pnpm 10.11
+### pnpm 11.5
 
 `pnpm` is faster, disk-efficient, and deterministic. We'll use its lockfile in CI.
 
 ```bash
 corepack enable
-corepack use pnpm@10.11.0
+corepack use pnpm@11.5.0
 pnpm -v
-# 10.11.0
+# 11.5.0
 ```
 
 ### Git

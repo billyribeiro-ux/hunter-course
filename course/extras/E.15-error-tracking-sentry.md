@@ -17,7 +17,7 @@ Corollary: **know exactly which errors each mechanism can and cannot catch.** A 
 ## Step 1 — Install, pinned
 
 ```bash
-pnpm --filter app add @sentry/sveltekit@9.20.0
+pnpm --filter app add @sentry/sveltekit@10.55.0
 ```
 
 Pinned, like everything else (Module 12.4's rule). Sentry's SDK has had breaking minors; `latest` is a time bomb.

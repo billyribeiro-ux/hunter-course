@@ -25,7 +25,7 @@ When something is genuinely broken, the quality of help you get matches the qual
 
 Example of a great question:
 
-> On lesson 6.3 (Create Webhook Endpoint), after running `stripe listen --forward-to localhost:5173/api/webhooks/stripe`, I POSTed a `customer.subscription.created` event via `stripe trigger`. The endpoint returns `400 Invalid signature`. My `PRIVATE_STRIPE_WEBHOOK_SECRET` is copied from the output of `stripe listen` (starts with `whsec_…`). I restarted `pnpm dev`. Node 22.15, pnpm 10.11, stripe-node 22.0.2. Stack trace attached.
+> On lesson 6.3 (Create Webhook Endpoint), after running `stripe listen --forward-to localhost:5173/api/webhooks/stripe`, I POSTed a `customer.subscription.created` event via `stripe trigger`. The endpoint returns `400 Invalid signature`. My `PRIVATE_STRIPE_WEBHOOK_SECRET` is copied from the output of `stripe listen` (starts with `whsec_…`). I restarted `pnpm dev`. Node 24.16, pnpm 11.5, stripe-node 22.2.0. Stack trace attached.
 
 A Principal Engineer would help that person. A "this doesn't work, halp!" message gets a shrug.
 

@@ -23,7 +23,7 @@ Three options, good to worst:
 - **In-memory (Vercel function memory)** — broken. Vercel scales functions across instances; the limit "resets" whenever a new instance spins up. Don't.
 
 ```bash
-pnpm --filter app add @upstash/ratelimit@1.2.0 @upstash/redis@1.34.0
+pnpm --filter app add @upstash/ratelimit@2.0.8 @upstash/redis@1.38.0
 ```
 
 ## Step 2 — The Upstash client

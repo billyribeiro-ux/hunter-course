@@ -47,7 +47,7 @@ We'll apply those instincts at every step. You'll see me stop mid-build to ask: 
 We'll walk through installation in Lesson 1.1, but here's the short list:
 
 - **Node.js 22.15 LTS** (install via `fnm`, `volta`, or direct download)
-- **pnpm 10.11+** (`corepack enable` then `corepack use pnpm@10.11.0`)
+- **pnpm 11.5+** (`corepack enable` then `corepack use pnpm@11.5.0`)
 - **Git**
 - **Docker Desktop** (for running Supabase locally)
 - **VS Code** or your editor of choice (we'll set up recommended extensions)
